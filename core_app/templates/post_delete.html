@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Удалить работу - АртПространство{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div style="text-align: center;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 4rem; color: #c62828; margin-bottom: 1rem;"></i>
+        <h2 class="form-title">Удалить работу</h2>
+    </div>
+    
+    <div class="alert alert-error mb-4">
+        <p style="text-align: center; font-size: 1.1rem;">
+            Вы уверены, что хотите удалить работу <strong>"{{ post.title }}"</strong>?
+        </p>
+        <p style="text-align: center;" class="mt-2">
+            Это действие нельзя отменить.
+        </p>
+    </div>
+    
+    {% if post.image %}
+        <div class="mb-4" style="text-align: center;">
+            <img src="{{ post.image.url }}" alt="{{ post.title }}" 
+                 style="max-width: 100%; max-height: 200px; border-radius: 4px; border: 1px solid #d7ccc8;">
+        </div>
+    {% endif %}
+    
+    <div class="post-content mb-4" style="background: #fcfaf7; padding: 1rem; border-radius: 4px;">
+        <p style="color: #795548;">{{ post.content|truncatechars:200 }}</p>
+        <div style="color: #a1887f; font-size: 0.9rem; margin-top: 0.5rem;">
+            Создано: {{ post.created_at|date:"d.m.Y H:i" }}
+        </div>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="d-flex gap-2 mt-4" style="justify-content: center;">
+            <button type="submit" class="btn" style="background-color: #c62828; padding: 0.75rem 2rem;">
+                <i class="fas fa-trash"></i> Да, удалить
+            </button>
+            <a href="{% url 'core_app:post_edit' post.id %}" class="btn btn-secondary" style="padding: 0.75rem 2rem;">
+                <i class="fas fa-arrow-left"></i> Вернуться к редактированию
+            </a>
+        </div>
+    </form>
+    
+    <div class="form-links mt-4" style="text-align: center;">
+        <a href="{% url 'core_app:post_detail' post.id %}" style="color: #8b7355;">
+            <i class="fas fa-eye"></i> Посмотреть пост
+        </a>
+    </div>
+</div>
+{% endblock %}

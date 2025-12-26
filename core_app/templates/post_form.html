@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if post %}Редактировать работу{% else %}Новая работа{% endif %} - АртПространство
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <h2 class="form-title">
+        {% if post %}
+            <i class="fas fa-edit"></i> Редактировать работу
+        {% else %}
+            <i class="fas fa-plus-circle"></i> Новая работа
+        {% endif %}
+    </h2>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">
+                    {% if field.name == 'title' %}
+                        <i class="fas fa-heading"></i>
+                    {% elif field.name == 'content' %}
+                        <i class="fas fa-align-left"></i>
+                    {% elif field.name == 'image' %}
+                        <i class="fas fa-image"></i>
+                    {% endif %}
+                    {{ field.label }}
+                </label>
+                {{ field }}
+                {% if field.help_text %}
+                    <small class="form-text">{{ field.help_text }}</small>
+                {% endif %}
+                {% for error in field.errors %}
+                    <div class="alert alert-error mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+        
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn">
+                {% if post %}
+                    <i class="fas fa-save"></i> Сохранить изменения
+                {% else %}
+                    <i class="fas fa-paper-plane"></i> Опубликовать
+                {% endif %}
+            </button>
+            
+            {% if post %}
+                <!-- Для редактирования: кнопка удалить -->
+                <a href="{% url 'core_app:post_delete' post.id %}" class="btn" style="background-color: #c62828;">
+                    <i class="fas fa-trash"></i> Удалить
+                </a>
+                <a href="{% url 'core_app:post_detail' post.id %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Отмена
+                </a>
+            {% else %}
+                <!-- Для создания: просто отмена -->
+                <a href="{% url 'core_app:home' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Отмена
+                </a>
+            {% endif %}
+        </div>
+    </form>
+    
+    <!-- Предпросмотр изображения -->
+    {% if post and post.image %}
+        <div class="mt-4 p-3" style="background: #fcfaf7; border-radius: 8px; border: 1px solid #e0d7c8;">
+            <h3 style="color: #5d4037; margin-bottom: 1rem;">
+                <i class="fas fa-eye"></i> Текущее изображение
+            </h3>
+            <div style="text-align: center;">
+                <img src="{{ post.image.url }}" alt="{{ post.title }}" 
+                     style="max-width: 100%; max-height: 300px; border-radius: 4px; border: 1px solid #d7ccc8;">
+                <p class="mt-2" style="color: #a1887f; font-size: 0.9rem;">
+                    Размер: {{ post.image.width }}×{{ post.image.height }}px
+                </p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- JavaScript для предпросмотра загружаемого изображения -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const imageInput = document.getElementById('id_image');
+    if (imageInput) {
+        // Создаем контейнер для предпросмотра
+        const previewContainer = document.createElement('div');
+        previewContainer.className = 'mt-4 p-3';
+        previewContainer.style.cssText = 'background: #fcfaf7; border-radius: 8px; border: 1px solid #e0d7c8; display: none;';
+        previewContainer.innerHTML = `
+            <h3 style="color: #5d4037; margin-bottom: 1rem;">
+                <i class="fas fa-image"></i> Предпросмотр
+            </h3>
+            <div style="text-align: center;">
+                <img id="imagePreview" style="max-width: 100%; max-height: 300px; border-radius: 4px; border: 1px solid #d7ccc8;">
+                <p id="imageInfo" class="mt-2" style="color: #a1887f; font-size: 0.9rem;"></p>
+            </div>
+        `;
+        
+        // Вставляем после формы
+        imageInput.parentNode.parentNode.appendChild(previewContainer);
+        
+        // Обработчик изменения файла
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('imagePreview');
+                    const info = document.getElementById('imageInfo');
+                    const container = previewContainer;
+                    
+                    preview.src = e.target.result;
+                    info.textContent = `Файл: ${file.name} (${Math.round(file.size / 1024)} KB)`;
+                    container.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                previewContainer.style.display = 'none';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

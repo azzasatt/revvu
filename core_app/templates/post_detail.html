@@ -1,0 +1,454 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ post.title }} - АртПространство{% endblock %}
+
+{% block content %}
+<div class="post-detail-container">
+    <!-- Карточка поста -->
+    <div class="post-detail-card">
+        <!-- Шапка поста -->
+        <div class="post-detail-header">
+            <div class="post-author-info">
+                <a href="{% url 'core_app:profile' post.user.username %}" class="author-link">
+                    <div class="avatar-large">
+                        {% if post.user.profile.avatar %}
+                            <img src="{{ post.user.profile.avatar.url }}" alt="{{ post.user.username }}">
+                        {% else %}
+                            <div class="avatar-large-default">
+                                {{ post.user.username|first|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="author-details">
+                        <strong class="author-name">{{ post.user.username }}</strong>
+                        <span class="post-date">{{ post.created_at|date:"d.m.Y H:i" }}</span>
+                        {% if post.updated_at != post.created_at %}
+                            <span class="post-updated">(изменено {{ post.updated_at|date:"d.m.Y H:i" }})</span>
+                        {% endif %}
+                    </div>
+                </a>
+            </div>
+            
+            {% if user == post.user %}
+            <div class="post-actions-header">
+                <a href="{% url 'core_app:post_edit' post.id %}" class="btn-edit">
+                    <i class="fas fa-edit"></i> Редактировать
+                </a>
+                <a href="{% url 'core_app:post_delete' post.id %}" class="btn-delete">
+                    <i class="fas fa-trash"></i> Удалить
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Изображение поста -->
+        {% if post.image %}
+        <div class="post-image-container">
+            <img src="{{ post.image.url }}" alt="{{ post.title }}" class="post-main-image" id="mainImage">
+            <button class="zoom-btn" onclick="toggleZoom()">
+                <i class="fas fa-search-plus"></i>
+            </button>
+        </div>
+        {% else %}
+        <div class="post-image-placeholder">
+            <i class="fas fa-image"></i>
+            <span>Изображение не загружено</span>
+        </div>
+        {% endif %}
+
+        <!-- Кнопки лайков/комментариев -->
+        <div class="post-actions-bar">
+            <div class="post-actions-left">
+                <!-- Форма для лайков (рабочий вариант) -->
+                <form method="POST" action="{% url 'core_app:like_post' post.id %}" class="like-form" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="action-button like-btn {% if user in post.likes.all %}liked{% endif %}" 
+                            {% if not user.is_authenticated %}disabled title="Войдите, чтобы ставить лайки"{% endif %}>
+                        <i class="{% if user in post.likes.all %}fas fa-heart{% else %}far fa-heart{% endif %}"></i>
+                        <span class="likes-count">{{ post.likes.count }}</span>
+                    </button>
+                </form>
+                
+                <button class="action-button comment-btn" onclick="scrollToComments()">
+                    <i class="far fa-comment"></i>
+                    <span class="comments-count">{{ post.comments.count }}</span>
+                </button>
+                
+                <button class="action-button share-btn" onclick="sharePost()">
+                    <i class="far fa-share-square"></i>
+                    <span>Поделиться</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Контент поста -->
+        <div class="post-content-wrapper">
+            <div class="post-meta">
+                <h1 class="post-title">{{ post.title }}</h1>
+                
+                <div class="post-description">
+                    {{ post.content|linebreaks }}
+                </div>
+                
+                <div class="post-meta-info">
+                    <div class="meta-item">
+                        <i class="far fa-eye"></i>
+                        <span>Просмотры: {{ post.views|default:"0" }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="far fa-comment"></i>
+                        <span>Комментарии: {{ post.comments.count }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="far fa-heart"></i>
+                        <span>Лайки: {{ post.likes.count }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="post-date-info">
+                {{ post.created_at|date:"d F Y" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Действия с постом -->
+    <div class="post-actions-footer">
+        <a href="{% url 'core_app:home' %}" class="btn-back">
+            <i class="fas fa-arrow-left"></i> Назад к ленте
+        </a>
+        <a href="{% url 'core_app:profile' post.user.username %}" class="btn-profile">
+            <i class="fas fa-user"></i> Профиль автора
+        </a>
+    </div>
+
+    <!-- Комментарии -->
+    <div class="comments-section">
+        <div class="comments-header">
+            <h3 class="comments-title">
+                <i class="far fa-comments"></i> Комментарии
+            </h3>
+            <span class="comments-count">({{ post.comments.count }})</span>
+        </div>
+        
+        <!-- Форма добавления комментария -->
+        {% if user.is_authenticated %}
+        <div class="comment-form-wrapper">
+            <form method="post" action="{% url 'core_app:add_comment' post.id %}" class="comment-form" id="comment-form">
+                {% csrf_token %}
+                <div class="avatar-comment">
+                    {% if user.profile.avatar %}
+                        <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}">
+                    {% else %}
+                        <div class="avatar-comment-default">
+                            {{ user.username|first|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="comment-input-wrapper">
+                    <textarea name="content" placeholder="Добавить комментарий..." required id="comment-textarea"></textarea>
+                    <button type="submit" class="btn-comment-submit">
+                        <i class="fas fa-paper-plane"></i> Отправить
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% else %}
+        <div class="comment-login-prompt">
+            <p>Чтобы оставить комментарий, <a href="{% url 'core_app:login_view' %}">войдите</a> или <a href="{% url 'core_app:register' %}">зарегистрируйтесь</a>.</p>
+        </div>
+        {% endif %}
+        
+        <!-- Список комментариев -->
+        <div class="comments-list" id="comments-list">
+            {% for comment in comments %}
+            <div class="comment-item" id="comment-{{ comment.id }}">
+                <div class="avatar-small">
+                    {% if comment.user.profile.avatar %}
+                        <img src="{{ comment.user.profile.avatar.url }}" alt="{{ comment.user.username }}">
+                    {% else %}
+                        <div class="avatar-small-default">
+                            {{ comment.user.username|first|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="comment-content-wrapper">
+                    <div class="comment-header">
+                        <a href="{% url 'core_app:profile' comment.user.username %}" class="comment-author-link">
+                            <div class="comment-author-info">
+                                <strong class="comment-author-name">{{ comment.user.username }}</strong>
+                                <span class="comment-date">{{ comment.created_at|date:"d.m.Y H:i" }}</span>
+                            </div>
+                        </a>
+                        
+                        <div class="comment-actions">
+                            {% if user == comment.user or user == post.user %}
+                            <a href="{% url 'core_app:delete_comment' comment.id %}" class="comment-delete-btn" 
+                               onclick="return confirm('Удалить комментарий?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="comment-text">
+                        {{ comment.content|linebreaks }}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="no-comments">
+                <i class="far fa-comment"></i>
+                <p>Пока нет комментариев. Будьте первым!</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Функция для зума изображения
+function toggleZoom() {
+    const image = document.getElementById('mainImage');
+    if (!image) return;
+    
+    if (image.classList.contains('zoomed')) {
+        image.classList.remove('zoomed');
+        image.style.cursor = 'zoom-in';
+    } else {
+        image.classList.add('zoomed');
+        image.style.cursor = 'zoom-out';
+    }
+}
+
+// Зум по клику на изображение
+document.addEventListener('DOMContentLoaded', function() {
+    const image = document.getElementById('mainImage');
+    if (image) {
+        image.addEventListener('click', toggleZoom);
+        image.style.cursor = 'zoom-in';
+    }
+});
+
+// Функция для кнопки комментариев (прокрутка к форме комментариев)
+function scrollToComments() {
+    const commentsSection = document.querySelector('.comments-section');
+    if (commentsSection) {
+        commentsSection.scrollIntoView({ behavior: 'smooth' });
+        
+        // Фокус на поле ввода комментария
+        const commentTextarea = document.getElementById('comment-textarea');
+        if (commentTextarea) {
+            commentTextarea.focus();
+        }
+    }
+}
+
+// AJAX для формы лайков (чтобы не перезагружать страницу)
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработка формы лайков
+    const likeForms = document.querySelectorAll('.like-form');
+    likeForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Если пользователь не авторизован
+            {% if not user.is_authenticated %}
+                window.location.href = "{% url 'core_app:login_view' %}";
+                return;
+            {% endif %}
+            
+            const formData = new FormData(this);
+            const button = this.querySelector('button');
+            const icon = button.querySelector('i');
+            const countSpan = button.querySelector('.likes-count');
+            
+            // Показываем загрузку
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            button.disabled = true;
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Обновляем кнопку
+                    countSpan.textContent = data.likes_count;
+                    
+                    if (data.liked) {
+                        button.classList.add('liked');
+                        icon.className = 'fas fa-heart';
+                    } else {
+                        button.classList.remove('liked');
+                        icon.className = 'far fa-heart';
+                    }
+                    
+                    // Обновляем счетчик в meta-info
+                    const metaLikes = document.querySelector('.meta-item:nth-child(3) span');
+                    if (metaLikes) {
+                        metaLikes.textContent = `Лайки: ${data.likes_count}`;
+                    }
+                } else {
+                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Если AJAX не работает, отправляем форму обычным способом
+                this.submit();
+            })
+            .finally(() => {
+                // Восстанавливаем кнопку
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            });
+        });
+    });
+    
+    // AJAX для формы комментариев (опционально)
+    const commentForm = document.getElementById('comment-form');
+    if (commentForm) {
+        commentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const textarea = this.querySelector('textarea');
+            const originalText = textarea.value;
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.redirected) {
+                    // Если редирект (при ошибке или успехе без AJAX)
+                    window.location.href = response.url;
+                } else if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error('Network response was not ok');
+                }
+            })
+            .then(data => {
+                if (data && data.success) {
+                    // Очищаем поле ввода
+                    textarea.value = '';
+                    
+                    // Обновляем счетчик комментариев
+                    const commentsCount = document.querySelector('.comments-count');
+                    const commentsList = document.getElementById('comments-list');
+                    const noComments = document.querySelector('.no-comments');
+                    
+                    if (commentsCount) {
+                        const currentCount = parseInt(commentsCount.textContent.match(/\d+/)[0] || 0);
+                        commentsCount.textContent = `(${currentCount + 1})`;
+                    }
+                    
+                    // Обновляем счетчик в кнопке
+                    const commentBtnCount = document.querySelector('.comment-btn .comments-count');
+                    if (commentBtnCount) {
+                        const currentBtnCount = parseInt(commentBtnCount.textContent || 0);
+                        commentBtnCount.textContent = currentBtnCount + 1;
+                    }
+                    
+                    // Обновляем счетчик в meta-info
+                    const metaComments = document.querySelector('.meta-item:nth-child(2) span');
+                    if (metaComments) {
+                        const currentMetaCount = parseInt(metaComments.textContent.match(/\d+/)[0] || 0);
+                        metaComments.textContent = `Комментарии: ${currentMetaCount + 1}`;
+                    }
+                    
+                    // Убираем "нет комментариев"
+                    if (noComments) {
+                        noComments.remove();
+                    }
+                    
+                    // Добавляем новый комментарий
+                    const newCommentHTML = `
+                        <div class="comment-item" id="comment-${data.comment_id}">
+                            <div class="avatar-small">
+                                {% if user.profile.avatar %}
+                                    <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}">
+                                {% else %}
+                                    <div class="avatar-small-default">
+                                        {{ user.username|first|upper }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="comment-content-wrapper">
+                                <div class="comment-header">
+                                    <a href="{% url 'core_app:profile' user.username %}" class="comment-author-link">
+                                        <div class="comment-author-info">
+                                            <strong class="comment-author-name">{{ user.username }}</strong>
+                                            <span class="comment-date">только что</span>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="comment-text">${originalText.replace(/\n/g, '<br>')}</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (commentsList) {
+                        commentsList.insertAdjacentHTML('afterbegin', newCommentHTML);
+                    }
+                    
+                    // Прокручиваем к новому комментарию
+                    const newComment = document.getElementById(`comment-${data.comment_id}`);
+                    if (newComment) {
+                        newComment.scrollIntoView({ behavior: 'smooth' });
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Если AJAX не работает, отправляем форму обычным способом
+                this.submit();
+            });
+        });
+    }
+    
+    // Добавляем обработчик для кнопки комментариев
+    const commentBtn = document.querySelector('.comment-btn');
+    if (commentBtn) {
+        commentBtn.addEventListener('click', scrollToComments);
+    }
+});
+
+// Функция для кнопки "Поделиться"
+function sharePost() {
+    if (navigator.share) {
+        navigator.share({
+            title: document.title,
+            text: 'Посмотрите этот пост на АртПространство',
+            url: window.location.href,
+        })
+        .catch(console.error);
+    } else {
+        navigator.clipboard.writeText(window.location.href)
+            .then(() => {
+                alert('Ссылка скопирована в буфер обмена!');
+            })
+            .catch(err => {
+                prompt('Скопируйте ссылку:', window.location.href);
+            });
+    }
+}
+</script>
+{% endblock %}

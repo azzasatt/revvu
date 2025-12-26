@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}АртПространство - Работы художников{% endblock %}
+
+{% block content %}
+<div class="posts-container">
+    {% if not posts %}
+        <div class="text-center" style="padding: 4rem; background: white; border-radius: 12px; border: 1px solid #efefef;">
+            <i class="fas fa-palette" style="font-size: 3rem; color: #d7ccc8; margin-bottom: 1rem;"></i>
+            <h3 style="color: #262626; margin-bottom: 0.5rem;">Пока нет работ</h3>
+            <p style="color: #8e8e8e; font-size: 15px;">
+                Будьте первым, кто поделится своим искусством!
+            </p>
+            {% if user.is_authenticated %}
+                <a href="{% url 'core_app:post_create' %}" class="btn mt-3">
+                    <i class="fas fa-plus"></i> Создать первый пост
+                </a>
+            {% else %}
+                <div class="d-flex gap-2 justify-center mt-3">
+                    <a href="{% url 'core_app:register' %}" class="btn">Зарегистрироваться</a>
+                    <a href="{% url 'core_app:login_view' %}" class="btn btn-secondary">Войти</a>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <div class="posts-grid">
+        {% for post in posts %}
+            <!-- Вся карточка кликабельна -->
+            <a href="{% url 'core_app:post_detail' post.id %}" class="post-card-link" style="text-decoration: none; color: inherit;">
+                <div class="post-card">
+                    <div class="post-header">
+                        <div class="post-avatar">
+                            {% if post.user.profile.avatar %}
+                                <img src="{{ post.user.profile.avatar.url }}" alt="{{ post.user.username }}">
+                            {% else %}
+                                <div class="post-avatar-default">
+                                    {{ post.user.username|first|upper }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="post-author-info">
+                            <div class="post-author-name">{{ post.user.username }}</div>
+                            <div class="post-date">{{ post.created_at|date:"d.m.Y" }}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Изображение показываем только если оно есть -->
+                    {% if post.image %}
+                        <div class="post-image-container">
+                            <img src="{{ post.image.url }}" alt="{{ post.title }}" class="post-image">
+                        </div>
+                    {% else %}
+                        <!-- Добавляем класс no-image для скрытия контейнера -->
+                        <div class="no-image"></div>
+                    {% endif %}
+                    
+                    <div class="post-content">
+                        <h3 class="post-title">{{ post.title }}</h3>
+                        <p class="post-text">{{ post.content|truncatechars:150 }}</p>
+                        
+                        <!-- Кнопки лайков и комментариев -->
+                        <div class="post-actions">
+                            <button type="button" class="action-button like-button" data-post-id="{{ post.id }}">
+                                <i class="far fa-heart"></i>
+                                <span class="likes-count">{{ post.likes.count }}</span>
+                            </button>
+                            
+                            <button type="button" class="action-button comment-button">
+                                <i class="far fa-comment"></i>
+                                <span class="comments-count">{{ post.comments.count }}</span>
+                            </button>
+                            
+                            <span style="margin-left: auto; font-size: 11px; color: #8e8e8e;">
+                                <i class="far fa-eye"></i> {{ post.views|default:"0" }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- JavaScript для обработки лайков -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработка лайков
+    document.querySelectorAll('.like-button').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault(); // Предотвращаем переход по ссылке
+            e.stopPropagation(); // Останавливаем всплытие
+            
+            const postId = this.dataset.postId;
+            const icon = this.querySelector('i');
+            const countSpan = this.querySelector('.likes-count');
+            let currentCount = parseInt(countSpan.textContent);
+            
+            // Отправляем запрос на сервер
+            fetch(`/post/${postId}/like/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.liked) {
+                    icon.className = 'fas fa-heart';
+                    this.classList.add('liked');
+                    countSpan.textContent = currentCount + 1;
+                } else {
+                    icon.className = 'far fa-heart';
+                    this.classList.remove('liked');
+                    countSpan.textContent = currentCount - 1;
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+    
+    // Обработка комментариев (просто переход на страницу поста с фокусом на комментариях)
+    document.querySelectorAll('.comment-button').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const postCard = this.closest('.post-card');
+            const postLink = postCard.closest('.post-card-link');
+            window.location.href = postLink.href + '#comments';
+        });
+    });
+});
+</script>
+{% endblock %}
